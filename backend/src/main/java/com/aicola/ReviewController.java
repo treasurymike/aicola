@@ -6,6 +6,7 @@ package com.aicola;
 import com.aicola.ColaLabelChecker.ColaLabelReview;
 import com.aicola.ColaLabelChecker.RequirementCheck;
 import com.anthropic.errors.AnthropicServiceException;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -36,25 +37,34 @@ public class ReviewController {
     public record ReviewResponse(List<RequirementResult> checks, String overallSummary) {}
 
     private final ColaLabelChecker checker;
+    private final String defaultApiKey;
 
-    public ReviewController(ColaLabelChecker checker) {
+    public ReviewController(ColaLabelChecker checker,
+                            @Value("${ANTHROPIC_API_KEY:}") String defaultApiKey) {
         this.checker = checker;
+        this.defaultApiKey = defaultApiKey;
     }
 
     @PostMapping(value = "/api/review", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ReviewResponse review(
-            @RequestHeader("X-Anthropic-Api-Key") String apiKey,
+            @RequestHeader(value = "X-Anthropic-Api-Key", required = false) String apiKey,
             @RequestPart("front") MultipartFile front,
             @RequestPart("back") MultipartFile back,
             @RequestParam(defaultValue = "distilled spirits") String commodity,
             @RequestParam(defaultValue = "false") boolean imported) throws IOException {
 
-        if (apiKey == null || apiKey.isBlank()) {
-            throw new IllegalArgumentException("Missing X-Anthropic-Api-Key header");
+        // Caller-supplied key wins; otherwise fall back to the server's
+        // configured key (ANTHROPIC_API_KEY env var). The key is never stored.
+        String resolvedKey = (apiKey != null && !apiKey.isBlank())
+                ? apiKey.trim() : defaultApiKey;
+        if (resolvedKey == null || resolvedKey.isBlank()) {
+            throw new IllegalArgumentException(
+                    "No API key: supply the X-Anthropic-Api-Key header, or configure "
+                    + "ANTHROPIC_API_KEY on the server.");
         }
 
         ColaLabelReview review = checker.reviewLabels(
-                apiKey.trim(),
+                resolvedKey,
                 front.getBytes(), imageMediaType(front),
                 back.getBytes(), imageMediaType(back),
                 commodity, imported);

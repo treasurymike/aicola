@@ -34,8 +34,9 @@ aicola/
 
 - `POST /api/review` (multipart): `front` + `back` image files,
   `commodity` (`wine` | `distilled spirits` | `malt beverage`),
-  `imported` (boolean). The caller's Anthropic API key is passed per-request
-  in the `X-Anthropic-Api-Key` header — the server stores no key.
+  `imported` (boolean). The Claude API key is resolved per request: the
+  caller's `X-Anthropic-Api-Key` header if provided, otherwise the server's
+  `ANTHROPIC_API_KEY` environment variable. Keys are never stored.
 - The backend sends both images to Claude in one request with a structured
   output schema (one verdict per requirement), then applies a deterministic
   regex check that the Government Health Warning matches the exact wording
@@ -54,9 +55,9 @@ aicola/
 
 ## Running locally
 
-Prerequisites: **JDK 21+**, **Maven 3.8+**, **Node.js 18+**, and an
-**Anthropic API key** (created at https://platform.claude.com — entered in
-the UI at request time, not configured on the server).
+Prerequisites: **JDK 21+**, **Maven 3.8+**, **Node.js 18+**, and a
+**Claude API key** (created at https://platform.claude.com — either set as
+`ANTHROPIC_API_KEY` on the backend, or entered in the UI at request time).
 
 Run the backend and frontend in **two separate terminals**.
 
@@ -80,8 +81,9 @@ npm run dev
 ### Use the app
 
 1. Open http://localhost:3000 in a browser.
-2. Paste your Anthropic API key (`sk-ant-...`) — it is sent per-request in the
-   `X-Anthropic-Api-Key` header and never stored.
+2. Optionally paste your Claude API key (`sk-ant-...`) — it is sent
+   per-request in the `X-Anthropic-Api-Key` header and never stored. If left
+   blank, the backend uses its `ANTHROPIC_API_KEY` environment variable.
 3. Upload the front and back label images (JPEG/PNG/GIF/WebP, max 20 MB each).
 4. Pick the commodity (wine / distilled spirits / malt beverage) and tick
    "Imported product" if applicable.
@@ -109,7 +111,8 @@ If the backend runs anywhere other than `http://localhost:8080`, set
 
 | Setting | Where | Default |
 |---|---|---|
-| Backend port | `backend/src/main/resources/application.properties` | 8080 |
+| Server default Claude API key | `ANTHROPIC_API_KEY` env var on the backend | none — callers must then supply their own key |
+| Backend port | `backend/src/main/resources/application.properties` | 8080 (or the `PORT` env var) |
 | Max upload size | same file | 20 MB per file |
 | Backend URL used by frontend | `NEXT_PUBLIC_API_BASE_URL` env var | `http://localhost:8080` |
 | CORS allowed origins | `backend/.../CorsConfig.java` | `*` (dev only — restrict before deploying) |

@@ -35,8 +35,8 @@ export default function Home() {
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
-    if (!front || !back || !apiKey.trim()) {
-      setError("Please provide your API key and both label images.");
+    if (!front || !back) {
+      setError("Please provide both label images.");
       return;
     }
 
@@ -51,9 +51,14 @@ export default function Home() {
     form.append("imported", String(imported));
 
     try {
+      const headers: Record<string, string> = {};
+      if (apiKey.trim()) {
+        headers["X-Anthropic-Api-Key"] = apiKey.trim();
+      }
+
       const res = await fetch(`${API_BASE}/api/review`, {
         method: "POST",
-        headers: { "X-Anthropic-Api-Key": apiKey.trim() },
+        headers,
         body: form,
       });
 
@@ -80,7 +85,7 @@ export default function Home() {
         against the 8 mandatory requirements.
       </p>
       <p className="attribution">
-        Solution by Mike Chen{" "}
+        Solution by <strong>Mike Chen</strong>{" "}
         <a href="mailto:mike2025@rocketship.com">
           &lt;mike2025@rocketship.com&gt;
         </a>{" "}
@@ -90,23 +95,25 @@ export default function Home() {
 
       <form onSubmit={onSubmit}>
         <label>
-          Anthropic API key
+          Claude API Key (optional)
           <span className="hint">
-            Used for this review only — sent to the review service per request,
-            never stored.
+            Leave blank to use the server&apos;s configured key. If provided,
+            it is used for this review only — sent per request, never stored.
           </span>
           <input
             type="password"
             value={apiKey}
             onChange={(e) => setApiKey(e.target.value)}
-            placeholder="sk-ant-..."
+            placeholder="sk-ant-... (optional)"
             autoComplete="off"
-            required
           />
         </label>
 
         <label>
           Front label image
+          <span className="hint">
+            Only JPEG, PNG, GIF, and WebP files are allowed.
+          </span>
           <input
             type="file"
             accept="image/png,image/jpeg,image/gif,image/webp"
@@ -117,6 +124,9 @@ export default function Home() {
 
         <label>
           Back label image
+          <span className="hint">
+            Only JPEG, PNG, GIF, and WebP files are allowed.
+          </span>
           <input
             type="file"
             accept="image/png,image/jpeg,image/gif,image/webp"

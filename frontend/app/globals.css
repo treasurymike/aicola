@@ -30,14 +30,24 @@ h1 {
 }
 
 .attribution {
-  font-size: 0.85rem;
-  color: #6b6257;
-  border-left: 3px solid #b3552e;
-  padding-left: 0.75rem;
+  background: #fffdf8;
+  border: 1px solid #d8d0c2;
+  border-left: 6px solid #b3552e;
+  border-radius: 6px;
+  padding: 0.9rem 1.1rem;
+  font-size: 1.05rem;
+  color: #2b2b2b;
+  box-shadow: 0 1px 3px rgba(43, 43, 43, 0.08);
+}
+
+.attribution strong {
+  color: #b3552e;
+  font-size: 1.1rem;
 }
 
 .attribution a {
   color: #b3552e;
+  font-weight: bold;
 }
 
 form {
