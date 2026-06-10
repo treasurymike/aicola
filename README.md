@@ -45,6 +45,14 @@ aicola/
 - **Batch processing:** the UI supports reviewing multiple labels at once
   ("+ Add another label"); each front/back pair is sent as its own parallel
   request to the stateless endpoint and results render as they complete.
+- **Application-data cross-check (TTB F 5100.31):** optional per-label form
+  fields — `applicantNameAddress`, `brandName`, `classType`, `netContents`,
+  `alcoholContent` — mirror what an applicant declares on the COLA
+  application. When provided, the review also verifies form-to-label
+  consistency (the second half of a real TTB examiner's job) and returns a
+  MATCH/MISMATCH finding per declared field. Exact-match fields (brand name,
+  net contents) are additionally verified with a deterministic normalized
+  text comparison, like the health-warning regex.
 - The backend sends both images to Claude in one request with a structured
   output schema (one verdict per requirement), then applies a deterministic
   regex check that the Government Health Warning matches the exact wording
@@ -95,13 +103,18 @@ npm run dev
 3. Upload the front and back label images (JPEG/PNG/GIF/WebP, max 20 MB
    each). Click **+ Add another label** to review multiple products in one
    batch — all labels are processed in parallel.
-4. Pick the commodity (wine / distilled spirits / malt beverage) and tick
+4. Optionally expand **Application data (TTB F 5100.31)** inside any label
+   box and enter the values declared on the COLA application (applicant
+   name/address, brand name, class/type, net contents, alcohol content) —
+   the results will then include a form-to-label consistency table.
+5. Pick the commodity (wine / distilled spirits / malt beverage) and tick
    "Imported product" if applicable.
-5. Under **Advanced settings** (optional): choose the vision model — Claude
+6. Under **Advanced settings** (optional): choose the vision model — Claude
    Haiku, the default (~5–15 s per label), or Claude Opus for maximum
    thoroughness (~30–60 s per label) — and/or supply your own API key.
-6. Click **Review labels**. Results show one PASS/WARN/FAIL row per
-   requirement plus an overall summary, per label.
+7. Click **Review labels**. Results show one PASS/WARN/FAIL row per
+   requirement plus an overall summary, per label — and a MATCH/MISMATCH
+   consistency table when application data was provided.
 
 ### Production-style run (optional)
 

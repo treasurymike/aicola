@@ -38,6 +38,13 @@ public class ColaLabelChecker {
             @JsonPropertyDescription("Problems even if present: wrong format, illegible, cut off, etc.") List<String> issues,
             @JsonPropertyDescription("high, medium, or low") String confidence) {}
 
+    public record ConsistencyFinding(
+            @JsonPropertyDescription("Declared field: applicantNameAddress, brandName, classType, netContents, or alcoholContent") String field,
+            @JsonPropertyDescription("Value declared on the TTB F 5100.31 application") String declaredValue,
+            @JsonPropertyDescription("Corresponding value found on the label, verbatim; null if absent") String labelValue,
+            @JsonPropertyDescription("Whether the label is consistent with the declared value") boolean consistent,
+            @JsonPropertyDescription("Short explanation, especially for any discrepancy") String note) {}
+
     public record ColaLabelReview(
             RequirementCheck brandName,
             @JsonPropertyDescription("Class/type designation per the standards of identity") RequirementCheck classAndType,
@@ -47,7 +54,21 @@ public class ColaLabelChecker {
             @JsonPropertyDescription("Imports only") RequirementCheck countryOfOrigin,
             @JsonPropertyDescription("GOVERNMENT WARNING statement per 27 CFR Part 16") RequirementCheck healthWarning,
             @JsonPropertyDescription("Sulfites, FD&C Yellow No. 5, aspartame, etc.") RequirementCheck commodityDisclosures,
+            @JsonPropertyDescription("One finding per declared application field; empty if no application data provided") List<ConsistencyFinding> applicationConsistency,
             String overallSummary) {}
+
+    /** Label-checkable fields declared on the COLA application (TTB F 5100.31). */
+    public record ApplicationData(String applicantNameAddress, String brandName,
+                                  String classType, String netContents, String alcoholContent) {
+        public boolean isEmpty() {
+            return isBlank(applicantNameAddress) && isBlank(brandName) && isBlank(classType)
+                    && isBlank(netContents) && isBlank(alcoholContent);
+        }
+
+        private static boolean isBlank(String s) {
+            return s == null || s.isBlank();
+        }
+    }
 
     private static final String SYSTEM = """
             You are a TTB alcohol beverage label compliance pre-screener.
@@ -74,6 +95,12 @@ public class ColaLabelChecker {
         return ContentBlockParam.ofText(TextBlockParam.builder().text(s).build());
     }
 
+    private static void appendIfPresent(StringBuilder sb, String field, String value) {
+        if (value != null && !value.isBlank()) {
+            sb.append("\n- ").append(field).append(": ").append(value.trim());
+        }
+    }
+
     // --- 3. The vision call with typed structured output ---
 
     /**
@@ -86,16 +113,34 @@ public class ColaLabelChecker {
     public ColaLabelReview reviewLabels(String apiKey, VisionModel model,
                                         byte[] frontBytes, String frontMediaType,
                                         byte[] backBytes, String backMediaType,
-                                        String commodity, boolean imported) {
+                                        String commodity, boolean imported,
+                                        ApplicationData appData) {
         AnthropicClient client = AnthropicOkHttpClient.builder()
                 .apiKey(apiKey)
                 .build();
 
-        String instructions = "Product type: " + commodity + ". "
+        StringBuilder instructions = new StringBuilder("Product type: " + commodity + ". "
                 + (imported
                     ? "Imported product — country of origin IS required."
                     : "Domestic product — mark countryOfOrigin present=true with issue note: not applicable.")
-                + " Check all 8 COLA requirements across both labels.";
+                + " Check all 8 COLA requirements across both labels.");
+
+        if (appData != null && !appData.isEmpty()) {
+            instructions.append("\n\nAPPLICATION DATA declared on TTB F 5100.31. Cross-check each ")
+                    .append("declared field below against the labels, like a TTB examiner ")
+                    .append("verifying form-to-label consistency. Report exactly one ")
+                    .append("applicationConsistency finding per declared field; set ")
+                    .append("consistent=true only if the label genuinely agrees with the ")
+                    .append("declared value:");
+            appendIfPresent(instructions, "applicantNameAddress", appData.applicantNameAddress());
+            appendIfPresent(instructions, "brandName", appData.brandName());
+            appendIfPresent(instructions, "classType", appData.classType());
+            appendIfPresent(instructions, "netContents", appData.netContents());
+            appendIfPresent(instructions, "alcoholContent", appData.alcoholContent());
+        } else {
+            instructions.append(" No application data was provided; return an empty ")
+                    .append("applicationConsistency array.");
+        }
 
         // Haiku (default, no extended thinking) meets the ~5-second stakeholder
         // turnaround target; Opus + adaptive thinking is the thorough option.
@@ -109,7 +154,7 @@ public class ColaLabelChecker {
                         imageBlock(frontBytes, frontMediaType),
                         text("BACK label:"),
                         imageBlock(backBytes, backMediaType),
-                        text(instructions)));
+                        text(instructions.toString())));
         if (model == VisionModel.OPUS) {
             builder.thinking(ThinkingConfigAdaptive.builder().build());
         }

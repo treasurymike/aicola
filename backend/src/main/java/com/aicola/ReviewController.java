@@ -3,7 +3,9 @@
 
 package com.aicola;
 
+import com.aicola.ColaLabelChecker.ApplicationData;
 import com.aicola.ColaLabelChecker.ColaLabelReview;
+import com.aicola.ColaLabelChecker.ConsistencyFinding;
 import com.aicola.ColaLabelChecker.RequirementCheck;
 import com.anthropic.errors.AnthropicServiceException;
 import org.springframework.beans.factory.annotation.Value;
@@ -34,7 +36,9 @@ public class ReviewController {
             String requirement, boolean present, String foundOn,
             String extractedText, List<String> issues, String confidence, String status) {}
 
-    public record ReviewResponse(List<RequirementResult> checks, String overallSummary) {}
+    public record ReviewResponse(List<RequirementResult> checks,
+                                 List<ConsistencyFinding> applicationConsistency,
+                                 String overallSummary) {}
 
     private final ColaLabelChecker checker;
     private final String defaultApiKey;
@@ -52,7 +56,12 @@ public class ReviewController {
             @RequestPart("back") MultipartFile back,
             @RequestParam(defaultValue = "distilled spirits") String commodity,
             @RequestParam(defaultValue = "false") boolean imported,
-            @RequestParam(defaultValue = "haiku") String model) throws IOException {
+            @RequestParam(defaultValue = "haiku") String model,
+            @RequestParam(required = false) String applicantNameAddress,
+            @RequestParam(required = false) String brandName,
+            @RequestParam(required = false) String classType,
+            @RequestParam(required = false) String netContents,
+            @RequestParam(required = false) String alcoholContent) throws IOException {
 
         // Caller-supplied key wins; otherwise fall back to the server's
         // configured key (ANTHROPIC_API_KEY env var). The key is never stored.
@@ -69,11 +78,14 @@ public class ReviewController {
                 ? ColaLabelChecker.VisionModel.OPUS
                 : ColaLabelChecker.VisionModel.HAIKU;
 
+        ApplicationData appData = new ApplicationData(
+                applicantNameAddress, brandName, classType, netContents, alcoholContent);
+
         ColaLabelReview review = checker.reviewLabels(
                 resolvedKey, visionModel,
                 front.getBytes(), imageMediaType(front),
                 back.getBytes(), imageMediaType(back),
-                commodity, imported);
+                commodity, imported, appData);
 
         var results = new ArrayList<RequirementResult>();
         results.add(toResult("Brand name", review.brandName(), review.brandName().issues()));
@@ -87,7 +99,45 @@ public class ReviewController {
         results.add(toResult("Commodity-specific disclosures", review.commodityDisclosures(),
                 review.commodityDisclosures().issues()));
 
-        return new ReviewResponse(results, review.overallSummary());
+        List<ConsistencyFinding> consistency =
+                applyDeterministicConsistency(review.applicationConsistency(), review);
+
+        return new ReviewResponse(results, consistency, review.overallSummary());
+    }
+
+    /**
+     * Belt-and-suspenders for exact-match fields: if the model called the label
+     * consistent but a normalized text comparison disagrees, flip the finding.
+     * Same philosophy as the health-warning regex — prescribed-text matching
+     * never rests on model judgment alone.
+     */
+    private static List<ConsistencyFinding> applyDeterministicConsistency(
+            List<ConsistencyFinding> findings, ColaLabelReview review) {
+        if (findings == null) {
+            return List.of();
+        }
+        return findings.stream().map(f -> {
+            String labelText = switch (f.field() == null ? "" : f.field()) {
+                case "brandName" -> review.brandName().extractedText();
+                case "netContents" -> review.netContents().extractedText();
+                default -> null;
+            };
+            if (f.consistent() && f.declaredValue() != null && labelText != null) {
+                String declared = normalize(f.declaredValue());
+                String label = normalize(labelText);
+                if (!declared.isEmpty() && !label.equals(declared) && !label.contains(declared)) {
+                    String note = (f.note() == null || f.note().isBlank()) ? "" : f.note() + " ";
+                    return new ConsistencyFinding(f.field(), f.declaredValue(), f.labelValue(),
+                            false, note + "Deterministic text comparison: the label text does "
+                            + "not match the declared value.");
+                }
+            }
+            return f;
+        }).toList();
+    }
+
+    private static String normalize(String s) {
+        return s.toLowerCase(Locale.ROOT).replaceAll("[\\s.,]", "");
     }
 
     private static RequirementResult toResult(String name, RequirementCheck check, List<String> issues) {

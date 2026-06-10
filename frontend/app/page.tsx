@@ -18,14 +18,55 @@ interface RequirementResult {
   status: "PASS" | "WARN" | "FAIL";
 }
 
+interface ConsistencyFinding {
+  field: string;
+  declaredValue: string | null;
+  labelValue: string | null;
+  consistent: boolean;
+  note: string | null;
+}
+
 interface ReviewResponse {
   checks: RequirementResult[];
+  applicationConsistency: ConsistencyFinding[];
   overallSummary: string;
+}
+
+// Label-checkable fields from the COLA application form (TTB F 5100.31)
+interface AppData {
+  applicantNameAddress: string;
+  brandName: string;
+  classType: string;
+  netContents: string;
+  alcoholContent: string;
+}
+
+const APP_FIELDS: { key: keyof AppData; label: string }[] = [
+  { key: "applicantNameAddress", label: "Applicant name & address" },
+  { key: "brandName", label: "Brand name" },
+  { key: "classType", label: "Class / type designation" },
+  { key: "netContents", label: "Net contents" },
+  { key: "alcoholContent", label: "Alcohol content" },
+];
+
+const APP_FIELD_LABELS: Record<string, string> = Object.fromEntries(
+  APP_FIELDS.map((f) => [f.key, f.label]),
+);
+
+function emptyAppData(): AppData {
+  return {
+    applicantNameAddress: "",
+    brandName: "",
+    classType: "",
+    netContents: "",
+    alcoholContent: "",
+  };
 }
 
 interface LabelPair {
   front: File | null;
   back: File | null;
+  app: AppData;
 }
 
 interface BatchItem {
@@ -74,7 +115,7 @@ export default function Home() {
   const [apiKey, setApiKey] = useState("");
   const [model, setModel] = useState("haiku");
   const [pairs, setPairs] = useState<LabelPair[]>([
-    { front: null, back: null },
+    { front: null, back: null, app: emptyAppData() },
   ]);
   const [commodity, setCommodity] = useState("distilled spirits");
   const [imported, setImported] = useState(false);
@@ -82,14 +123,29 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [batch, setBatch] = useState<BatchItem[]>([]);
 
-  function updatePair(index: number, field: keyof LabelPair, file: File | null) {
+  function updatePair(
+    index: number,
+    field: "front" | "back",
+    file: File | null,
+  ) {
     setPairs((prev) =>
       prev.map((p, i) => (i === index ? { ...p, [field]: file } : p)),
     );
   }
 
+  function updateAppData(index: number, field: keyof AppData, value: string) {
+    setPairs((prev) =>
+      prev.map((p, i) =>
+        i === index ? { ...p, app: { ...p.app, [field]: value } } : p,
+      ),
+    );
+  }
+
   function addPair() {
-    setPairs((prev) => [...prev, { front: null, back: null }]);
+    setPairs((prev) => [
+      ...prev,
+      { front: null, back: null, app: emptyAppData() },
+    ]);
   }
 
   function removePair(index: number) {
@@ -108,6 +164,11 @@ export default function Home() {
     form.append("commodity", commodity);
     form.append("imported", String(imported));
     form.append("model", model);
+    for (const { key } of APP_FIELDS) {
+      if (pair.app[key].trim()) {
+        form.append(key, pair.app[key].trim());
+      }
+    }
 
     const headers: Record<string, string> = {};
     if (apiKey.trim()) {
@@ -230,6 +291,25 @@ export default function Home() {
                 required
               />
             </label>
+
+            <details className="advanced">
+              <summary>Application data (TTB F 5100.31) — optional</summary>
+              <p className="hint">
+                Enter values declared on the COLA application and the review
+                will cross-check the labels against them, like a TTB examiner
+                verifying form-to-label consistency.
+              </p>
+              {APP_FIELDS.map(({ key, label }) => (
+                <label key={key}>
+                  {label}
+                  <input
+                    type="text"
+                    value={pair.app[key]}
+                    onChange={(e) => updateAppData(i, key, e.target.value)}
+                  />
+                </label>
+              ))}
+            </details>
           </fieldset>
         ))}
 
@@ -359,6 +439,38 @@ export default function Home() {
                   ))}
                 </tbody>
               </table>
+
+              {item.data.applicationConsistency?.length > 0 && (
+                <>
+                  <h3>Application consistency (TTB F 5100.31)</h3>
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Status</th>
+                        <th>Declared field</th>
+                        <th>On application</th>
+                        <th>On label</th>
+                        <th>Note</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {item.data.applicationConsistency.map((f) => (
+                        <tr key={f.field}>
+                          <td
+                            className={`status ${f.consistent ? "PASS" : "FAIL"}`}
+                          >
+                            {f.consistent ? "MATCH" : "MISMATCH"}
+                          </td>
+                          <td>{APP_FIELD_LABELS[f.field] ?? f.field}</td>
+                          <td>{f.declaredValue ?? "—"}</td>
+                          <td>{f.labelValue ?? "—"}</td>
+                          <td>{f.note ?? ""}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </>
+              )}
 
               <div className="summary">
                 <strong>Summary:</strong> {item.data.overallSummary}
