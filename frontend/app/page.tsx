@@ -66,6 +66,8 @@ function emptyAppData(): AppData {
 interface LabelPair {
   front: File | null;
   back: File | null;
+  commodity: string;
+  imported: boolean;
   app: AppData;
 }
 
@@ -115,21 +117,25 @@ export default function Home() {
   const [apiKey, setApiKey] = useState("");
   const [model, setModel] = useState("haiku");
   const [pairs, setPairs] = useState<LabelPair[]>([
-    { front: null, back: null, app: emptyAppData() },
+    {
+      front: null,
+      back: null,
+      commodity: "distilled spirits",
+      imported: false,
+      app: emptyAppData(),
+    },
   ]);
-  const [commodity, setCommodity] = useState("distilled spirits");
-  const [imported, setImported] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [batch, setBatch] = useState<BatchItem[]>([]);
 
-  function updatePair(
+  function updatePair<K extends keyof LabelPair>(
     index: number,
-    field: "front" | "back",
-    file: File | null,
+    field: K,
+    value: LabelPair[K],
   ) {
     setPairs((prev) =>
-      prev.map((p, i) => (i === index ? { ...p, [field]: file } : p)),
+      prev.map((p, i) => (i === index ? { ...p, [field]: value } : p)),
     );
   }
 
@@ -142,10 +148,21 @@ export default function Home() {
   }
 
   function addPair() {
-    setPairs((prev) => [
-      ...prev,
-      { front: null, back: null, app: emptyAppData() },
-    ]);
+    // New labels inherit the previous label's commodity and import status,
+    // so homogeneous batches (the common case) need no extra clicks.
+    setPairs((prev) => {
+      const last = prev[prev.length - 1];
+      return [
+        ...prev,
+        {
+          front: null,
+          back: null,
+          commodity: last?.commodity ?? "distilled spirits",
+          imported: last?.imported ?? false,
+          app: emptyAppData(),
+        },
+      ];
+    });
   }
 
   function removePair(index: number) {
@@ -161,8 +178,8 @@ export default function Home() {
     const form = new FormData();
     form.append("front", frontScaled);
     form.append("back", backScaled);
-    form.append("commodity", commodity);
-    form.append("imported", String(imported));
+    form.append("commodity", pair.commodity);
+    form.append("imported", String(pair.imported));
     form.append("model", model);
     for (const { key } of APP_FIELDS) {
       if (pair.app[key].trim()) {
@@ -292,6 +309,28 @@ export default function Home() {
               />
             </label>
 
+            <label>
+              Commodity
+              <select
+                value={pair.commodity}
+                onChange={(e) => updatePair(i, "commodity", e.target.value)}
+              >
+                <option value="wine">Wine</option>
+                <option value="distilled spirits">Distilled spirits</option>
+                <option value="malt beverage">Malt beverage</option>
+              </select>
+            </label>
+
+            <div className="checkbox-row">
+              <input
+                id={`imported-${i}`}
+                type="checkbox"
+                checked={pair.imported}
+                onChange={(e) => updatePair(i, "imported", e.target.checked)}
+              />
+              <label htmlFor={`imported-${i}`}>Imported product</label>
+            </div>
+
             <details className="advanced">
               <summary>Application data (TTB F 5100.31) — optional</summary>
               <p className="hint">
@@ -316,28 +355,6 @@ export default function Home() {
         <button type="button" className="add-pair" onClick={addPair}>
           + Add another label
         </button>
-
-        <label>
-          Commodity
-          <select
-            value={commodity}
-            onChange={(e) => setCommodity(e.target.value)}
-          >
-            <option value="wine">Wine</option>
-            <option value="distilled spirits">Distilled spirits</option>
-            <option value="malt beverage">Malt beverage</option>
-          </select>
-        </label>
-
-        <div className="checkbox-row">
-          <input
-            id="imported"
-            type="checkbox"
-            checked={imported}
-            onChange={(e) => setImported(e.target.checked)}
-          />
-          <label htmlFor="imported">Imported product</label>
-        </div>
 
         <details className="advanced">
           <summary>Advanced settings</summary>

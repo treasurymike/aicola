@@ -108,7 +108,9 @@ npm run dev
    name/address, brand name, class/type, net contents, alcohol content) —
    the results will then include a form-to-label consistency table.
 5. Pick the commodity (wine / distilled spirits / malt beverage) and tick
-   "Imported product" if applicable.
+   "Imported product" **per label** — batches can mix commodities. New labels
+   inherit the previous label's settings, so homogeneous batches need no
+   extra clicks.
 6. Under **Advanced settings** (optional): choose the vision model — Claude
    Haiku, the default (~5–15 s per label), or Claude Opus for maximum
    thoroughness (~30–60 s per label) — and/or supply your own API key.
