@@ -23,6 +23,41 @@ interface ReviewResponse {
   overallSummary: string;
 }
 
+// Downscale large photos client-side before upload: label text stays readable
+// at 1600px on the long edge, uploads stay well under the Claude API's 5 MB
+// image limit, and smaller images process faster.
+async function downscaleImage(file: File): Promise<File> {
+  const MAX_EDGE = 1600;
+  try {
+    const bitmap = await createImageBitmap(file);
+    const scale = MAX_EDGE / Math.max(bitmap.width, bitmap.height);
+    if (scale >= 1) {
+      bitmap.close();
+      return file;
+    }
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.round(bitmap.width * scale);
+    canvas.height = Math.round(bitmap.height * scale);
+    const ctx = canvas.getContext("2d");
+    if (!ctx) {
+      bitmap.close();
+      return file;
+    }
+    ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    bitmap.close();
+    const blob = await new Promise<Blob | null>((resolve) =>
+      canvas.toBlob(resolve, "image/jpeg", 0.85),
+    );
+    if (!blob) return file;
+    return new File([blob], file.name.replace(/\.\w+$/, "") + ".jpg", {
+      type: "image/jpeg",
+    });
+  } catch {
+    // Fall back to the original file if the browser can't decode it
+    return file;
+  }
+}
+
 export default function Home() {
   const [apiKey, setApiKey] = useState("");
   const [front, setFront] = useState<File | null>(null);
@@ -44,9 +79,14 @@ export default function Home() {
     setError(null);
     setResult(null);
 
+    const [frontScaled, backScaled] = await Promise.all([
+      downscaleImage(front),
+      downscaleImage(back),
+    ]);
+
     const form = new FormData();
-    form.append("front", front);
-    form.append("back", back);
+    form.append("front", frontScaled);
+    form.append("back", backScaled);
     form.append("commodity", commodity);
     form.append("imported", String(imported));
 
@@ -95,21 +135,6 @@ export default function Home() {
 
       <form onSubmit={onSubmit}>
         <label>
-          Claude API Key (optional)
-          <span className="hint">
-            Leave blank to use the server&apos;s configured key. If provided,
-            it is used for this review only — sent per request, never stored.
-          </span>
-          <input
-            type="password"
-            value={apiKey}
-            onChange={(e) => setApiKey(e.target.value)}
-            placeholder="sk-ant-... (optional)"
-            autoComplete="off"
-          />
-        </label>
-
-        <label>
           Front label image
           <span className="hint">
             Only JPEG, PNG, GIF, and WebP files are allowed.
@@ -157,8 +182,26 @@ export default function Home() {
           <label htmlFor="imported">Imported product</label>
         </div>
 
+        <details className="advanced">
+          <summary>Advanced settings</summary>
+          <label>
+            Claude API Key (optional)
+            <span className="hint">
+              Leave blank to use the server&apos;s configured key. If provided,
+              it is used for this review only — sent per request, never stored.
+            </span>
+            <input
+              type="password"
+              value={apiKey}
+              onChange={(e) => setApiKey(e.target.value)}
+              placeholder="sk-ant-... (optional)"
+              autoComplete="off"
+            />
+          </label>
+        </details>
+
         <button type="submit" disabled={loading}>
-          {loading ? "Reviewing… (this can take a minute)" : "Review labels"}
+          {loading ? "Reviewing… (typically ~10 seconds)" : "Review labels"}
         </button>
       </form>
 

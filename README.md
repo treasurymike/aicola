@@ -30,7 +30,7 @@ aicola/
 | Backend language | Java | 21 (tested on JDK 26) |
 | Build tool | Apache Maven | 3.8+ (tested on 4.0.0-rc-5) |
 | Claude API SDK | `com.anthropic:anthropic-java` | 2.34.0 |
-| Claude model | `claude-opus-4-8` | — |
+| Claude model | `claude-haiku-4-5` (speed-optimized; see Approach) | — |
 | Frontend framework | Next.js (App Router) | 15.5.x |
 | UI library | React | 19 |
 | Frontend language | TypeScript | 5 |
@@ -91,8 +91,9 @@ npm run dev
 3. Upload the front and back label images (JPEG/PNG/GIF/WebP, max 20 MB each).
 4. Pick the commodity (wine / distilled spirits / malt beverage) and tick
    "Imported product" if applicable.
-5. Click **Review labels**. Reviews take ~30–60 seconds; results show one
-   PASS/WARN/FAIL row per requirement plus an overall summary.
+5. Click **Review labels**. Reviews typically take ~5–15 seconds; results
+   show one PASS/WARN/FAIL row per requirement plus an overall summary.
+   (Supplying your own API key is available under **Advanced settings**.)
 
 ### Production-style run (optional)
 
@@ -162,6 +163,59 @@ build fails with a "could not determine how to build" error.
   backend URL.
 - **Before production:** restrict `CorsConfig` to the frontend's origin, and
   serve both over HTTPS — the user's API key travels in a request header.
+
+## Approach & Assumptions
+
+**Approach.** The core design treats label review as a vision + structured
+extraction problem: both label images go to the Claude API in a single
+request with a JSON schema that forces a verdict for every requirement (no
+parsing, no skipped items). Legally exact-wording rules are then verified
+deterministically in code — the Government Health Warning transcription is
+checked against the verbatim 27 CFR 16.21 text with a regex — so compliance
+with prescribed text never rests on model judgment alone.
+
+**Speed.** Stakeholder feedback prioritized ~5-second turnaround, so the app
+uses `claude-haiku-4-5` (Anthropic's fastest vision model) with extended
+thinking disabled, and the browser downscales photos to 1600 px on the long
+edge before upload (label text remains fully readable; uploads stay under
+the API's 5 MB image limit). Typical end-to-end time is ~5–15 seconds. The
+model is a one-line swap in `ColaLabelChecker.java` — `claude-opus-4-8`
+with adaptive thinking gives maximum thoroughness when speed matters less.
+
+**Assumptions:**
+
+- One product per review (a front/back pair). Batch upload is a planned
+  extension: the stateless `POST /api/review` endpoint can be fanned out in
+  parallel without redesign.
+- Type-size and contrast rules (e.g., minimum 1–2 mm lettering) need physical
+  scale that photographs don't carry — treated as manual-review items, noted
+  in the UI disclaimer.
+- Commodity-specific rule depth (age statements for spirits, vintage and
+  appellation rules for wine, ABV optionality for malt beverages) is
+  delegated to the model via the prompt; productionizing would move these
+  into code as a per-commodity rules table.
+- Wines under 7% ABV and non-malt-beverage products (e.g., sugar-based hard
+  seltzers) fall under FDA rather than TTB labeling rules; the app assumes
+  in-scope FAA Act products.
+- Labels photographed at angles or in poor lighting are handled by the
+  model's vision robustness plus an explicit instruction to report illegible
+  text with lowered confidence rather than guess.
+
+### Azure deployment path
+
+The current demo runs on Railway for convenience. For TTB's stated
+environment — Azure-based infrastructure with firewall restrictions on
+outbound traffic to external APIs — the same code deploys with two changes:
+
+1. Host the backend on **Azure App Service or Container Apps** (the Spring
+   Boot jar is platform-agnostic; `server.port=${PORT:8080}` already handles
+   platform port injection) and the frontend on **Azure Static Web Apps**.
+2. Call Claude through **Microsoft Foundry**, which serves Anthropic models
+   natively inside Azure — the backend then talks to an Azure endpoint
+   instead of `api.anthropic.com`, so no firewall exception for external
+   APIs is required. The Anthropic SDK supports Foundry as a first-class
+   backend; this is a client-construction change in `ColaLabelChecker`, not
+   a rewrite.
 
 ## Known limitations
 

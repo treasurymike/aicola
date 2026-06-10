@@ -83,6 +83,22 @@ select {
   background: #fff;
 }
 
+.advanced {
+  border: 1px dashed #c8bfae;
+  border-radius: 4px;
+  padding: 0.5rem 0.75rem;
+}
+
+.advanced summary {
+  cursor: pointer;
+  font-size: 0.9rem;
+  color: #6b6257;
+}
+
+.advanced label {
+  margin-top: 0.75rem;
+}
+
 .checkbox-row {
   display: flex;
   align-items: center;

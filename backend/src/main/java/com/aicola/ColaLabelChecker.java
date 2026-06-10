@@ -11,7 +11,6 @@ import com.anthropic.models.messages.ImageBlockParam;
 import com.anthropic.models.messages.MessageCreateParams;
 import com.anthropic.models.messages.StructuredMessageCreateParams;
 import com.anthropic.models.messages.TextBlockParam;
-import com.anthropic.models.messages.ThinkingConfigAdaptive;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import org.springframework.stereotype.Service;
 
@@ -94,10 +93,12 @@ public class ColaLabelChecker {
                     : "Domestic product — mark countryOfOrigin present=true with issue note: not applicable.")
                 + " Check all 8 COLA requirements across both labels.";
 
+        // Haiku with no extended thinking: stakeholder requirement is ~5-second
+        // turnaround; swap to claude-opus-4-8 + adaptive thinking if
+        // thoroughness ever outranks speed.
         StructuredMessageCreateParams<ColaLabelReview> params = MessageCreateParams.builder()
-                .model("claude-opus-4-8")
+                .model("claude-haiku-4-5")
                 .maxTokens(16000L)
-                .thinking(ThinkingConfigAdaptive.builder().build())
                 .system(SYSTEM)
                 .outputConfig(ColaLabelReview.class)   // schema auto-derived from the record
                 .addUserMessageOfBlockParams(List.of(
