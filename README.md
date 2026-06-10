@@ -18,8 +18,38 @@ Claude API with vision and structured outputs.
 
 ```
 aicola/
-├── backend/    Spring Boot REST API (Java 21, Maven)
-└── frontend/   Next.js upload UI (TypeScript, App Router)
+├── README.md                          This file
+├── .gitignore                         Excludes build output, node_modules, .env files
+│
+├── backend/                           Spring Boot REST API (Java 21, Maven)
+│   ├── pom.xml                        Maven build: Spring Boot 3.5.x parent + Anthropic Java SDK
+│   └── src/main/
+│       ├── java/com/aicola/
+│       │   ├── AiColaApp.java         Spring Boot entry point
+│       │   ├── ColaLabelChecker.java  Core service: Claude vision call with structured-output
+│       │   │                          schema (one verdict per requirement), model selection
+│       │   │                          (Haiku/Opus), TTB F 5100.31 cross-check prompt, and the
+│       │   │                          deterministic 27 CFR 16.21 health-warning regex
+│       │   ├── ReviewController.java  POST /api/review: multipart handling, per-request API key
+│       │   │                          resolution (header → ANTHROPIC_API_KEY env var), PASS/
+│       │   │                          WARN/FAIL mapping, deterministic brand-name/net-contents
+│       │   │                          consistency comparison, Anthropic error passthrough
+│       │   └── CorsConfig.java        CORS policy for the frontend origin
+│       └── resources/
+│           └── application.properties Port binding (${PORT:8080} for Railway) and upload limits
+│
+└── frontend/                          Next.js upload UI (TypeScript, App Router)
+    ├── package.json                   Next.js 15 / React 19 / TypeScript 5 dependencies
+    ├── package-lock.json              Locked dependency tree for reproducible installs
+    ├── next.config.mjs                Next.js configuration
+    ├── tsconfig.json                  TypeScript compiler settings
+    └── app/
+        ├── layout.tsx                 Root layout and page metadata
+        ├── page.tsx                   The whole UI: batch label list (front + optional back,
+        │                              per-label commodity/import and application data),
+        │                              client-side image downscaling, parallel review requests
+        │                              with live progress, per-label results tables
+        └── globals.css                Styling (cream/terracotta theme)
 ```
 
 ## Tech stack
