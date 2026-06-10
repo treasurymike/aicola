@@ -11,9 +11,6 @@ Checks a pair of alcohol beverage label images (front + back) against the 8
 mandatory TTB COLA label requirements (27 CFR Parts 4, 5, 7, and 16) using the
 Claude API with vision and structured outputs.
 
-> **This is a pre-screen only.** Only TTB (via [COLAs Online](https://www.ttb.gov/alfd/certificate-of-label-aproval-cola))
-> can approve a label.
-
 ## Architecture
 
 ```
