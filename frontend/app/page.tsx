@@ -74,10 +74,18 @@ export default function Home() {
 
   return (
     <main>
-      <h1>aicola</h1>
+      <h1>AI COLA App</h1>
       <p className="subtitle">
         TTB COLA label pre-screener — checks front and back label images
         against the 8 mandatory requirements.
+      </p>
+      <p className="attribution">
+        Solution by Mike Chen{" "}
+        <a href="mailto:mike2025@rocketship.com">
+          &lt;mike2025@rocketship.com&gt;
+        </a>{" "}
+        created using Claude Fable 5 AI for the U.S. Department of Treasury as
+        part of the candidate interview process.
       </p>
 
       <form onSubmit={onSubmit}>

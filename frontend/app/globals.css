@@ -29,6 +29,17 @@ h1 {
   margin-top: 0;
 }
 
+.attribution {
+  font-size: 0.85rem;
+  color: #6b6257;
+  border-left: 3px solid #b3552e;
+  padding-left: 0.75rem;
+}
+
+.attribution a {
+  color: #b3552e;
+}
+
 form {
   background: #fffdf8;
   border: 1px solid #d8d0c2;
