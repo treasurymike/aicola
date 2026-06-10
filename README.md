@@ -1,6 +1,6 @@
 # aicola — TTB COLA Label Pre-Screener
 
-> Solution by [@treasurymike](https://github.com) <mike2025@rocketship.com> created using Claude Fable 5 AI
+> Solution by [Mike Chen](https://github.com/treasurymike) <mike2025@rocketship.com> created using Claude Fable 5 AI
 > for the U.S. Department of Treasury as part of the candidate interview process.
 
 **🚀 Live demo:** https://aicola-mike-chen.up.railway.app/ —
@@ -297,5 +297,4 @@ outbound traffic to external APIs — the same code deploys with two changes:
 
 ## Author
 
-[@treasurymike](https://github.com) <mike2025@rocketship.com> 
-  
+[Mike Chen](https://github.com/treasurymike) <mike2025@rocketship.com> 
