@@ -3,6 +3,10 @@
 > Solution by Mike Chen <mike2025@rocketship.com> created using Claude Fable 5 AI
 > for the U.S. Department of Treasury as part of the candidate interview process.
 
+**🚀 Live demo (production):** https://aicola-mike-chen.up.railway.app/ —
+upload front and back label images to try it. The Claude API key field is
+optional; leave it blank to use the server's configured key.
+
 Checks a pair of alcohol beverage label images (front + back) against the 8
 mandatory TTB COLA label requirements (27 CFR Parts 4, 5, 7, and 16) using the
 Claude API with vision and structured outputs.
@@ -116,6 +120,37 @@ If the backend runs anywhere other than `http://localhost:8080`, set
 | Max upload size | same file | 20 MB per file |
 | Backend URL used by frontend | `NEXT_PUBLIC_API_BASE_URL` env var | `http://localhost:8080` |
 | CORS allowed origins | `backend/.../CorsConfig.java` | `*` (dev only — restrict before deploying) |
+
+## Deploying to Railway
+
+The production instance runs on [Railway](https://railway.app) as **two
+services from this single repo**. Railway's builder (Railpack) detects the
+project type from the *root directory of each service*, so the monorepo
+layout requires setting the root directory per service — without it the
+build fails with a "could not determine how to build" error.
+
+1. **Create the backend service**
+   - New service → Deploy from this GitHub repo.
+   - Settings → Source → **Root Directory:** `/backend`. Railpack then
+     detects `pom.xml` and builds with JDK 21 + Maven automatically.
+   - Variables → add `ANTHROPIC_API_KEY` = your Claude API key (this is the
+     server default used when callers don't supply their own).
+   - Settings → Networking → **Generate Domain**; note the URL.
+   - Port binding works out of the box: `application.properties` uses
+     `server.port=${PORT:8080}`, and Railway injects `PORT`.
+
+2. **Create the frontend service**
+   - Second service from the same repo.
+   - Settings → Source → **Root Directory:** `/frontend`. Railpack detects
+     `package.json` and runs `npm install` + `next build` + `next start`.
+   - Variables → add `NEXT_PUBLIC_API_BASE_URL` = the backend service's
+     public URL from step 1 (e.g. `https://aicola-backend.up.railway.app`).
+     **Set this before the first build** — `NEXT_PUBLIC_*` values are baked
+     in at build time, so changing it later requires a redeploy.
+   - Settings → Networking → Generate Domain — this is the user-facing URL.
+
+3. **Redeploys** are automatic: every `git push` to `main` rebuilds both
+   services.
 
 ## Deployment notes
 
