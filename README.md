@@ -1,4 +1,4 @@
-# aicola — TTB COLA Label Pre-Screener
+# aicola app — TTB COLA Label Pre-Screener
 
 > Solution by [Mike Chen](https://github.com/treasurymike) <mike2025@rocketship.com> created using Claude Fable 5 AI
 > for the U.S. Department of Treasury as part of the candidate interview process.
@@ -128,7 +128,7 @@ npm run dev
 
 ### Use the app
 
-1. Open http://localhost:3000 in a browser.
+1. Open http://localhost:3000 in a browser. Live demo available at https://aicola-mike-chen.up.railway.app/
 2. Optionally paste your Claude API key (`sk-ant-...`) — it is sent
    per-request in the `X-Anthropic-Api-Key` header and never stored. If left
    blank, the backend uses its `ANTHROPIC_API_KEY` environment variable.
