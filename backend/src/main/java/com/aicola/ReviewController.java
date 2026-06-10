@@ -53,7 +53,7 @@ public class ReviewController {
     public ReviewResponse review(
             @RequestHeader(value = "X-Anthropic-Api-Key", required = false) String apiKey,
             @RequestPart("front") MultipartFile front,
-            @RequestPart("back") MultipartFile back,
+            @RequestPart(value = "back", required = false) MultipartFile back,
             @RequestParam(defaultValue = "distilled spirits") String commodity,
             @RequestParam(defaultValue = "false") boolean imported,
             @RequestParam(defaultValue = "haiku") String model,
@@ -81,10 +81,15 @@ public class ReviewController {
         ApplicationData appData = new ApplicationData(
                 applicantNameAddress, brandName, classType, netContents, alcoholContent);
 
+        // A back label is optional — TTB only requires the mandatory
+        // information to appear somewhere on the container's labels.
+        byte[] backBytes = (back == null || back.isEmpty()) ? null : back.getBytes();
+        String backMediaType = backBytes == null ? null : imageMediaType(back);
+
         ColaLabelReview review = checker.reviewLabels(
                 resolvedKey, visionModel,
                 front.getBytes(), imageMediaType(front),
-                back.getBytes(), imageMediaType(back),
+                backBytes, backMediaType,
                 commodity, imported, appData);
 
         var results = new ArrayList<RequirementResult>();

@@ -36,8 +36,9 @@ aicola/
 | Frontend language | TypeScript | 5 |
 | Runtime (frontend) | Node.js | 18+ (tested on 24.16.0) |
 
-- `POST /api/review` (multipart): `front` + `back` image files,
-  `commodity` (`wine` | `distilled spirits` | `malt beverage`),
+- `POST /api/review` (multipart): `front` image file, optional `back` image
+  file (TTB doesn't require a back label — single-label products are fully
+  supported), `commodity` (`wine` | `distilled spirits` | `malt beverage`),
   `imported` (boolean), `model` (`haiku` default | `opus`). The Claude API
   key is resolved per request: the caller's `X-Anthropic-Api-Key` header if
   provided, otherwise the server's `ANTHROPIC_API_KEY` environment variable.
@@ -100,9 +101,10 @@ npm run dev
 2. Optionally paste your Claude API key (`sk-ant-...`) — it is sent
    per-request in the `X-Anthropic-Api-Key` header and never stored. If left
    blank, the backend uses its `ANTHROPIC_API_KEY` environment variable.
-3. Upload the front and back label images (JPEG/PNG/GIF/WebP, max 20 MB
-   each). Click **+ Add another label** to review multiple products in one
-   batch — all labels are processed in parallel.
+3. Upload the front label image, and the back label image if the product has
+   one (JPEG/PNG/GIF/WebP, max 20 MB each). Click **+ Add another label** to
+   review multiple products in one batch — all labels are processed in
+   parallel.
 4. Optionally expand **Application data (TTB F 5100.31)** inside any label
    box and enter the values declared on the COLA application (applicant
    name/address, brand name, class/type, net contents, alcohol content) —

@@ -172,12 +172,14 @@ export default function Home() {
   async function reviewOne(pair: LabelPair): Promise<ReviewResponse> {
     const [frontScaled, backScaled] = await Promise.all([
       downscaleImage(pair.front!),
-      downscaleImage(pair.back!),
+      pair.back ? downscaleImage(pair.back) : Promise.resolve(null),
     ]);
 
     const form = new FormData();
     form.append("front", frontScaled);
-    form.append("back", backScaled);
+    if (backScaled) {
+      form.append("back", backScaled);
+    }
     form.append("commodity", pair.commodity);
     form.append("imported", String(pair.imported));
     form.append("model", model);
@@ -208,8 +210,8 @@ export default function Home() {
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
-    if (pairs.some((p) => !p.front || !p.back)) {
-      setError("Please provide front and back images for every label.");
+    if (pairs.some((p) => !p.front)) {
+      setError("Please provide a front image for every label.");
       return;
     }
 
@@ -255,8 +257,8 @@ export default function Home() {
     <main>
       <h1>AI COLA App</h1>
       <p className="subtitle">
-        TTB COLA label pre-screener — checks front and back label images
-        against the 8 mandatory requirements.
+        TTB COLA label pre-screener — checks front (and optional back) label
+        images against the 8 mandatory requirements.
       </p>
       <p className="attribution">
         Solution by <strong>Mike Chen</strong>{" "}
@@ -297,15 +299,15 @@ export default function Home() {
             </label>
 
             <label>
-              Back label image
+              Back label image (optional)
               <span className="hint">
-                Only JPEG, PNG, GIF, and WebP files are allowed.
+                Leave empty for single-label products. Only JPEG, PNG, GIF,
+                and WebP files are allowed.
               </span>
               <input
                 type="file"
                 accept="image/png,image/jpeg,image/gif,image/webp"
                 onChange={(e) => updatePair(i, "back", e.target.files?.[0] ?? null)}
-                required
               />
             </label>
 

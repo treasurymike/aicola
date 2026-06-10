@@ -119,11 +119,22 @@ public class ColaLabelChecker {
                 .apiKey(apiKey)
                 .build();
 
+        boolean hasBack = backBytes != null;
+
         StringBuilder instructions = new StringBuilder("Product type: " + commodity + ". "
                 + (imported
                     ? "Imported product — country of origin IS required."
                     : "Domestic product — mark countryOfOrigin present=true with issue note: not applicable.")
-                + " Check all 8 COLA requirements across both labels.");
+                + (hasBack
+                    ? " Check all 8 COLA requirements across both labels."
+                    : " Only a single (front) label was provided — that is permitted; check"
+                    + " all 8 COLA requirements on it and use foundOn 'front' for items found."));
+
+        if ("wine".equalsIgnoreCase(commodity)) {
+            instructions.append(" Wine placement rule: brand name, class/type designation, and"
+                    + " alcohol content must appear on the brand (front) label; if any of these"
+                    + " appears only on the back label, mark it present but add a placement issue.");
+        }
 
         if (appData != null && !appData.isEmpty()) {
             instructions.append("\n\nAPPLICATION DATA declared on TTB F 5100.31. Cross-check each ")
@@ -142,6 +153,15 @@ public class ColaLabelChecker {
                     .append("applicationConsistency array.");
         }
 
+        var content = new ArrayList<ContentBlockParam>();
+        content.add(text(hasBack ? "FRONT label:" : "FRONT (only) label:"));
+        content.add(imageBlock(frontBytes, frontMediaType));
+        if (hasBack) {
+            content.add(text("BACK label:"));
+            content.add(imageBlock(backBytes, backMediaType));
+        }
+        content.add(text(instructions.toString()));
+
         // Haiku (default, no extended thinking) meets the ~5-second stakeholder
         // turnaround target; Opus + adaptive thinking is the thorough option.
         var builder = MessageCreateParams.builder()
@@ -149,12 +169,7 @@ public class ColaLabelChecker {
                 .maxTokens(16000L)
                 .system(SYSTEM)
                 .outputConfig(ColaLabelReview.class)   // schema auto-derived from the record
-                .addUserMessageOfBlockParams(List.of(
-                        text("FRONT label:"),
-                        imageBlock(frontBytes, frontMediaType),
-                        text("BACK label:"),
-                        imageBlock(backBytes, backMediaType),
-                        text(instructions.toString())));
+                .addUserMessageOfBlockParams(content);
         if (model == VisionModel.OPUS) {
             builder.thinking(ThinkingConfigAdaptive.builder().build());
         }
