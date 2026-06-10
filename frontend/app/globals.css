@@ -1,0 +1,140 @@
+/* Solution by Mike Chen <mike2025@rocketship.com> created using Claude Fable 5 AI
+   for the U.S. Department of Treasury as part of the candidate interview process. */
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: Georgia, "Times New Roman", serif;
+  background: #f4f1ea;
+  color: #2b2b2b;
+}
+
+main {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 2.5rem 1.5rem 4rem;
+}
+
+h1 {
+  font-size: 2rem;
+  margin-bottom: 0.25rem;
+}
+
+.subtitle {
+  color: #6b6257;
+  font-style: italic;
+  margin-top: 0;
+}
+
+form {
+  background: #fffdf8;
+  border: 1px solid #d8d0c2;
+  border-radius: 8px;
+  padding: 1.5rem;
+  display: grid;
+  gap: 1rem;
+  margin: 1.5rem 0;
+}
+
+label {
+  display: grid;
+  gap: 0.35rem;
+  font-weight: bold;
+  font-size: 0.95rem;
+}
+
+label .hint {
+  font-weight: normal;
+  font-size: 0.8rem;
+  color: #6b6257;
+}
+
+input[type="file"],
+input[type="password"],
+select {
+  font: inherit;
+  padding: 0.45rem;
+  border: 1px solid #c8bfae;
+  border-radius: 4px;
+  background: #fff;
+}
+
+.checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: bold;
+  font-size: 0.95rem;
+}
+
+button {
+  font: inherit;
+  font-weight: bold;
+  padding: 0.6rem 1.2rem;
+  background: #b3552e;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  justify-self: start;
+}
+
+button:disabled {
+  background: #c8bfae;
+  cursor: wait;
+}
+
+.error {
+  background: #fbe9e7;
+  border: 1px solid #d9836a;
+  border-radius: 4px;
+  padding: 0.75rem 1rem;
+  color: #8c2f0d;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #fffdf8;
+  border: 1px solid #d8d0c2;
+  font-size: 0.92rem;
+}
+
+th,
+td {
+  text-align: left;
+  padding: 0.6rem 0.75rem;
+  border-bottom: 1px solid #e8e1d4;
+  vertical-align: top;
+}
+
+th {
+  background: #efe9dd;
+}
+
+.status {
+  font-weight: bold;
+  white-space: nowrap;
+}
+
+.status.PASS { color: #2e6b34; }
+.status.WARN { color: #a26a00; }
+.status.FAIL { color: #9c2b13; }
+
+.summary {
+  background: #fffdf8;
+  border: 1px solid #d8d0c2;
+  border-radius: 8px;
+  padding: 1rem 1.25rem;
+  margin-top: 1.25rem;
+}
+
+.disclaimer {
+  font-size: 0.8rem;
+  color: #6b6257;
+  font-style: italic;
+  margin-top: 2rem;
+}

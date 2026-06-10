@@ -1,0 +1,28 @@
+# Solution by Mike Chen <mike2025@rocketship.com> created using Claude Fable 5 AI
+# for the U.S. Department of Treasury as part of the candidate interview process.
+
+# --- Java / Maven (backend) ---
+target/
+*.class
+*.jar
+!.mvn/wrapper/maven-wrapper.jar
+
+# --- Node / Next.js (frontend) ---
+node_modules/
+.next/
+out/
+next-env.d.ts
+npm-debug.log*
+*.tsbuildinfo
+
+# --- Secrets & local config ---
+.env
+.env.*
+!.env.example
+
+# --- IDE / OS noise ---
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db
