@@ -219,7 +219,9 @@ export default function Home() {
     setError(null);
     setBatch(
       pairs.map((p, i) => ({
-        name: `Label ${i + 1} — ${p.front!.name}`,
+        name: p.back
+          ? `Label ${i + 1} — front: ${p.front!.name}, back: ${p.back.name}`
+          : `Label ${i + 1} — ${p.front!.name}`,
         status: "pending" as const,
       })),
     );
