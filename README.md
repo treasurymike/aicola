@@ -11,6 +11,8 @@ Checks a pair of alcohol beverage label images (front + back) against the 8
 mandatory TTB COLA label requirements (27 CFR Parts 4, 5, 7, and 16) using the
 Claude API with vision and structured outputs.
 
+![Screenshot of the AI COLA App](screenshot1.png)
+
 ## Architecture
 
 ```
@@ -96,6 +98,8 @@ aicola/
 6. Country of origin (imports only)
 7. Government Health Warning statement (verified verbatim via regex post-check)
 8. Commodity-specific disclosures (sulfites, FD&C Yellow No. 5, etc.)
+
+![Screenshot of review results](screenshot2.png)
 
 ## Running locally
 
