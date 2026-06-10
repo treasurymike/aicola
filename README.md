@@ -1,9 +1,9 @@
 # aicola — TTB COLA Label Pre-Screener
 
-> Solution by Mike Chen <mike2025@rocketship.com> created using Claude Fable 5 AI
+> Solution by [@treasurymike](https://github.com) <mike2025@rocketship.com> created using Claude Fable 5 AI
 > for the U.S. Department of Treasury as part of the candidate interview process.
 
-**🚀 Live demo (production):** https://aicola-mike-chen.up.railway.app/ —
+**🚀 Live demo:** https://aicola-mike-chen.up.railway.app/ —
 upload front and back label images to try it. The Claude API key field is
 optional; leave it blank to use the server's configured key.
 
@@ -294,3 +294,8 @@ outbound traffic to external APIs — the same code deploys with two changes:
 - Commodity-specific logic (e.g., alcohol content is optional federally for
   malt beverages) is passed to the model via the prompt; for production use,
   move those rules into code.
+
+## Author
+
+[@treasurymike](https://github.com) <mike2025@rocketship.com> 
+  
