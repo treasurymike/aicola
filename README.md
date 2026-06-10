@@ -273,6 +273,18 @@ outbound traffic to external APIs — the same code deploys with two changes:
 
 ## Known limitations
 
+- **The ~5-second turnaround target is only partially met.** With the default
+  Claude Haiku model and client-side image downscaling, typical end-to-end
+  time is ~5–15 seconds per label — close to, but not reliably within, the
+  stated 5-second goal. Busy or hard-to-read labels land at the higher end.
+  Further gains would come from streaming partial results to the UI and
+  tuning image size/prompt length.
+- **Batch upload is practical for tens of labels, not the 200–300-application
+  scenario.** Each label is added individually via "+ Add another label" and
+  reviewed as its own parallel request from the browser. Handling a large
+  importer's 200–300 simultaneous applications would need a bulk intake path
+  (multi-file/drag-and-drop or CSV+zip upload) and a server-side job queue
+  with rate-limit-aware fan-out.
 - **Type-size and contrast rules can't be verified from a photo alone** (they
   need physical scale). Treat those as manual-review items.
 - Commodity-specific logic (e.g., alcohol content is optional federally for
