@@ -11,6 +11,7 @@ import com.anthropic.models.messages.ImageBlockParam;
 import com.anthropic.models.messages.MessageCreateParams;
 import com.anthropic.models.messages.StructuredMessageCreateParams;
 import com.anthropic.models.messages.TextBlockParam;
+import com.anthropic.models.messages.ThinkingConfigAdaptive;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import org.springframework.stereotype.Service;
 
@@ -79,7 +80,10 @@ public class ColaLabelChecker {
      * Runs the review using the caller-supplied Anthropic API key. The key is
      * used for this request only and is never stored.
      */
-    public ColaLabelReview reviewLabels(String apiKey,
+    /** Vision model choice — Haiku is fast (~5-15s), Opus is thorough (~30-60s). */
+    public enum VisionModel { HAIKU, OPUS }
+
+    public ColaLabelReview reviewLabels(String apiKey, VisionModel model,
                                         byte[] frontBytes, String frontMediaType,
                                         byte[] backBytes, String backMediaType,
                                         String commodity, boolean imported) {
@@ -93,11 +97,10 @@ public class ColaLabelChecker {
                     : "Domestic product — mark countryOfOrigin present=true with issue note: not applicable.")
                 + " Check all 8 COLA requirements across both labels.";
 
-        // Haiku with no extended thinking: stakeholder requirement is ~5-second
-        // turnaround; swap to claude-opus-4-8 + adaptive thinking if
-        // thoroughness ever outranks speed.
-        StructuredMessageCreateParams<ColaLabelReview> params = MessageCreateParams.builder()
-                .model("claude-haiku-4-5")
+        // Haiku (default, no extended thinking) meets the ~5-second stakeholder
+        // turnaround target; Opus + adaptive thinking is the thorough option.
+        var builder = MessageCreateParams.builder()
+                .model(model == VisionModel.OPUS ? "claude-opus-4-8" : "claude-haiku-4-5")
                 .maxTokens(16000L)
                 .system(SYSTEM)
                 .outputConfig(ColaLabelReview.class)   // schema auto-derived from the record
@@ -106,8 +109,11 @@ public class ColaLabelChecker {
                         imageBlock(frontBytes, frontMediaType),
                         text("BACK label:"),
                         imageBlock(backBytes, backMediaType),
-                        text(instructions)))
-                .build();
+                        text(instructions)));
+        if (model == VisionModel.OPUS) {
+            builder.thinking(ThinkingConfigAdaptive.builder().build());
+        }
+        StructuredMessageCreateParams<ColaLabelReview> params = builder.build();
 
         return client.messages().create(params).content().stream()
                 .flatMap(block -> block.text().stream())

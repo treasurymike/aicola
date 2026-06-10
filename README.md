@@ -30,7 +30,7 @@ aicola/
 | Backend language | Java | 21 (tested on JDK 26) |
 | Build tool | Apache Maven | 3.8+ (tested on 4.0.0-rc-5) |
 | Claude API SDK | `com.anthropic:anthropic-java` | 2.34.0 |
-| Claude model | `claude-haiku-4-5` (speed-optimized; see Approach) | — |
+| Claude model | `claude-haiku-4-5` (default, fast) or `claude-opus-4-8` (thorough, user-selectable) | — |
 | Frontend framework | Next.js (App Router) | 15.5.x |
 | UI library | React | 19 |
 | Frontend language | TypeScript | 5 |
@@ -38,9 +38,13 @@ aicola/
 
 - `POST /api/review` (multipart): `front` + `back` image files,
   `commodity` (`wine` | `distilled spirits` | `malt beverage`),
-  `imported` (boolean). The Claude API key is resolved per request: the
-  caller's `X-Anthropic-Api-Key` header if provided, otherwise the server's
-  `ANTHROPIC_API_KEY` environment variable. Keys are never stored.
+  `imported` (boolean), `model` (`haiku` default | `opus`). The Claude API
+  key is resolved per request: the caller's `X-Anthropic-Api-Key` header if
+  provided, otherwise the server's `ANTHROPIC_API_KEY` environment variable.
+  Keys are never stored.
+- **Batch processing:** the UI supports reviewing multiple labels at once
+  ("+ Add another label"); each front/back pair is sent as its own parallel
+  request to the stateless endpoint and results render as they complete.
 - The backend sends both images to Claude in one request with a structured
   output schema (one verdict per requirement), then applies a deterministic
   regex check that the Government Health Warning matches the exact wording
@@ -88,12 +92,16 @@ npm run dev
 2. Optionally paste your Claude API key (`sk-ant-...`) — it is sent
    per-request in the `X-Anthropic-Api-Key` header and never stored. If left
    blank, the backend uses its `ANTHROPIC_API_KEY` environment variable.
-3. Upload the front and back label images (JPEG/PNG/GIF/WebP, max 20 MB each).
+3. Upload the front and back label images (JPEG/PNG/GIF/WebP, max 20 MB
+   each). Click **+ Add another label** to review multiple products in one
+   batch — all labels are processed in parallel.
 4. Pick the commodity (wine / distilled spirits / malt beverage) and tick
    "Imported product" if applicable.
-5. Click **Review labels**. Reviews typically take ~5–15 seconds; results
-   show one PASS/WARN/FAIL row per requirement plus an overall summary.
-   (Supplying your own API key is available under **Advanced settings**.)
+5. Under **Advanced settings** (optional): choose the vision model — Claude
+   Haiku, the default (~5–15 s per label), or Claude Opus for maximum
+   thoroughness (~30–60 s per label) — and/or supply your own API key.
+6. Click **Review labels**. Results show one PASS/WARN/FAIL row per
+   requirement plus an overall summary, per label.
 
 ### Production-style run (optional)
 
@@ -179,14 +187,16 @@ uses `claude-haiku-4-5` (Anthropic's fastest vision model) with extended
 thinking disabled, and the browser downscales photos to 1600 px on the long
 edge before upload (label text remains fully readable; uploads stay under
 the API's 5 MB image limit). Typical end-to-end time is ~5–15 seconds. The
-model is a one-line swap in `ColaLabelChecker.java` — `claude-opus-4-8`
-with adaptive thinking gives maximum thoroughness when speed matters less.
+model is user-selectable under **Advanced settings**: `claude-opus-4-8`
+with adaptive thinking (~30–60 s per label) gives maximum thoroughness when
+speed matters less.
 
 **Assumptions:**
 
-- One product per review (a front/back pair). Batch upload is a planned
-  extension: the stateless `POST /api/review` endpoint can be fanned out in
-  parallel without redesign.
+- Batch reviews fan out as parallel requests from the browser to the
+  stateless endpoint — simple and fast for interactive batch sizes (tens of
+  labels). Very large batches (hundreds+) would move the fan-out server-side
+  with a job queue.
 - Type-size and contrast rules (e.g., minimum 1–2 mm lettering) need physical
   scale that photographs don't carry — treated as manual-review items, noted
   in the UI disclaimer.

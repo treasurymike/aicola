@@ -23,6 +23,18 @@ interface ReviewResponse {
   overallSummary: string;
 }
 
+interface LabelPair {
+  front: File | null;
+  back: File | null;
+}
+
+interface BatchItem {
+  name: string;
+  status: "pending" | "done" | "error";
+  data?: ReviewResponse;
+  error?: string;
+}
+
 // Downscale large photos client-side before upload: label text stays readable
 // at 1600px on the long edge, uploads stay well under the Claude API's 5 MB
 // image limit, and smaller images process faster.
@@ -60,28 +72,34 @@ async function downscaleImage(file: File): Promise<File> {
 
 export default function Home() {
   const [apiKey, setApiKey] = useState("");
-  const [front, setFront] = useState<File | null>(null);
-  const [back, setBack] = useState<File | null>(null);
+  const [model, setModel] = useState("haiku");
+  const [pairs, setPairs] = useState<LabelPair[]>([
+    { front: null, back: null },
+  ]);
   const [commodity, setCommodity] = useState("distilled spirits");
   const [imported, setImported] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<ReviewResponse | null>(null);
+  const [batch, setBatch] = useState<BatchItem[]>([]);
 
-  async function onSubmit(e: FormEvent) {
-    e.preventDefault();
-    if (!front || !back) {
-      setError("Please provide both label images.");
-      return;
-    }
+  function updatePair(index: number, field: keyof LabelPair, file: File | null) {
+    setPairs((prev) =>
+      prev.map((p, i) => (i === index ? { ...p, [field]: file } : p)),
+    );
+  }
 
-    setLoading(true);
-    setError(null);
-    setResult(null);
+  function addPair() {
+    setPairs((prev) => [...prev, { front: null, back: null }]);
+  }
 
+  function removePair(index: number) {
+    setPairs((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  async function reviewOne(pair: LabelPair): Promise<ReviewResponse> {
     const [frontScaled, backScaled] = await Promise.all([
-      downscaleImage(front),
-      downscaleImage(back),
+      downscaleImage(pair.front!),
+      downscaleImage(pair.back!),
     ]);
 
     const form = new FormData();
@@ -89,33 +107,71 @@ export default function Home() {
     form.append("back", backScaled);
     form.append("commodity", commodity);
     form.append("imported", String(imported));
+    form.append("model", model);
 
-    try {
-      const headers: Record<string, string> = {};
-      if (apiKey.trim()) {
-        headers["X-Anthropic-Api-Key"] = apiKey.trim();
-      }
-
-      const res = await fetch(`${API_BASE}/api/review`, {
-        method: "POST",
-        headers,
-        body: form,
-      });
-
-      if (!res.ok) {
-        const body = await res.json().catch(() => null);
-        throw new Error(
-          body?.error ?? `Request failed with status ${res.status}`,
-        );
-      }
-
-      setResult((await res.json()) as ReviewResponse);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
-    } finally {
-      setLoading(false);
+    const headers: Record<string, string> = {};
+    if (apiKey.trim()) {
+      headers["X-Anthropic-Api-Key"] = apiKey.trim();
     }
+
+    const res = await fetch(`${API_BASE}/api/review`, {
+      method: "POST",
+      headers,
+      body: form,
+    });
+
+    if (!res.ok) {
+      const body = await res.json().catch(() => null);
+      throw new Error(body?.error ?? `Request failed with status ${res.status}`);
+    }
+
+    return (await res.json()) as ReviewResponse;
   }
+
+  async function onSubmit(e: FormEvent) {
+    e.preventDefault();
+    if (pairs.some((p) => !p.front || !p.back)) {
+      setError("Please provide front and back images for every label.");
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+    setBatch(
+      pairs.map((p, i) => ({
+        name: `Label ${i + 1} — ${p.front!.name}`,
+        status: "pending" as const,
+      })),
+    );
+
+    // All labels are reviewed in parallel; each row updates as it finishes.
+    await Promise.all(
+      pairs.map((pair, i) =>
+        reviewOne(pair).then(
+          (data) =>
+            setBatch((prev) =>
+              prev.map((r, j) => (j === i ? { ...r, status: "done", data } : r)),
+            ),
+          (err) =>
+            setBatch((prev) =>
+              prev.map((r, j) =>
+                j === i
+                  ? {
+                      ...r,
+                      status: "error",
+                      error: err instanceof Error ? err.message : String(err),
+                    }
+                  : r,
+              ),
+            ),
+        ),
+      ),
+    );
+
+    setLoading(false);
+  }
+
+  const doneCount = batch.filter((b) => b.status !== "pending").length;
 
   return (
     <main>
@@ -134,31 +190,52 @@ export default function Home() {
       </p>
 
       <form onSubmit={onSubmit}>
-        <label>
-          Front label image
-          <span className="hint">
-            Only JPEG, PNG, GIF, and WebP files are allowed.
-          </span>
-          <input
-            type="file"
-            accept="image/png,image/jpeg,image/gif,image/webp"
-            onChange={(e) => setFront(e.target.files?.[0] ?? null)}
-            required
-          />
-        </label>
+        {pairs.map((pair, i) => (
+          <fieldset className="label-pair" key={i}>
+            <legend>
+              Label {i + 1}
+              {pairs.length > 1 && (
+                <button
+                  type="button"
+                  className="remove-pair"
+                  onClick={() => removePair(i)}
+                >
+                  Remove
+                </button>
+              )}
+            </legend>
 
-        <label>
-          Back label image
-          <span className="hint">
-            Only JPEG, PNG, GIF, and WebP files are allowed.
-          </span>
-          <input
-            type="file"
-            accept="image/png,image/jpeg,image/gif,image/webp"
-            onChange={(e) => setBack(e.target.files?.[0] ?? null)}
-            required
-          />
-        </label>
+            <label>
+              Front label image
+              <span className="hint">
+                Only JPEG, PNG, GIF, and WebP files are allowed.
+              </span>
+              <input
+                type="file"
+                accept="image/png,image/jpeg,image/gif,image/webp"
+                onChange={(e) => updatePair(i, "front", e.target.files?.[0] ?? null)}
+                required
+              />
+            </label>
+
+            <label>
+              Back label image
+              <span className="hint">
+                Only JPEG, PNG, GIF, and WebP files are allowed.
+              </span>
+              <input
+                type="file"
+                accept="image/png,image/jpeg,image/gif,image/webp"
+                onChange={(e) => updatePair(i, "back", e.target.files?.[0] ?? null)}
+                required
+              />
+            </label>
+          </fieldset>
+        ))}
+
+        <button type="button" className="add-pair" onClick={addPair}>
+          + Add another label
+        </button>
 
         <label>
           Commodity
@@ -184,6 +261,22 @@ export default function Home() {
 
         <details className="advanced">
           <summary>Advanced settings</summary>
+
+          <label>
+            Vision model
+            <span className="hint">
+              Approximate review time per label.
+            </span>
+            <select value={model} onChange={(e) => setModel(e.target.value)}>
+              <option value="haiku">
+                Claude Haiku — fastest (~5–15 seconds)
+              </option>
+              <option value="opus">
+                Claude Opus — most thorough (~30–60 seconds)
+              </option>
+            </select>
+          </label>
+
           <label>
             Claude API Key (optional)
             <span className="hint">
@@ -201,57 +294,79 @@ export default function Home() {
         </details>
 
         <button type="submit" disabled={loading}>
-          {loading ? "Reviewing… (typically ~10 seconds)" : "Review labels"}
+          {loading
+            ? `Reviewing… ${doneCount}/${batch.length} done`
+            : pairs.length > 1
+              ? `Review ${pairs.length} labels`
+              : "Review labels"}
         </button>
       </form>
 
       {error && <div className="error">{error}</div>}
 
-      {result && (
-        <>
-          <table>
-            <thead>
-              <tr>
-                <th>Status</th>
-                <th>Requirement</th>
-                <th>Found on</th>
-                <th>Details</th>
-                <th>Confidence</th>
-              </tr>
-            </thead>
-            <tbody>
-              {result.checks.map((c) => (
-                <tr key={c.requirement}>
-                  <td className={`status ${c.status}`}>{c.status}</td>
-                  <td>{c.requirement}</td>
-                  <td>{c.foundOn ?? "—"}</td>
-                  <td>
-                    {c.issues.length > 0 ? (
-                      <ul style={{ margin: 0, paddingLeft: "1.1rem" }}>
-                        {c.issues.map((issue, i) => (
-                          <li key={i}>{issue}</li>
-                        ))}
-                      </ul>
-                    ) : (
-                      "OK"
-                    )}
-                    {c.extractedText && (
-                      <div className="hint" style={{ marginTop: "0.3rem" }}>
-                        “{c.extractedText}”
-                      </div>
-                    )}
-                  </td>
-                  <td>{c.confidence}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      {batch.map((item) => (
+        <section className="result-item" key={item.name}>
+          <h2>
+            {item.name}
+            {item.status === "pending" && (
+              <span className="result-state pending"> reviewing…</span>
+            )}
+            {item.status === "error" && (
+              <span className="result-state failed"> failed</span>
+            )}
+          </h2>
 
-          <div className="summary">
-            <strong>Summary:</strong> {result.overallSummary}
-          </div>
-        </>
-      )}
+          {item.status === "error" && (
+            <div className="error">{item.error}</div>
+          )}
+
+          {item.status === "done" && item.data && (
+            <>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Status</th>
+                    <th>Requirement</th>
+                    <th>Found on</th>
+                    <th>Details</th>
+                    <th>Confidence</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {item.data.checks.map((c) => (
+                    <tr key={c.requirement}>
+                      <td className={`status ${c.status}`}>{c.status}</td>
+                      <td>{c.requirement}</td>
+                      <td>{c.foundOn ?? "—"}</td>
+                      <td>
+                        {c.issues.length > 0 ? (
+                          <ul style={{ margin: 0, paddingLeft: "1.1rem" }}>
+                            {c.issues.map((issue, i) => (
+                              <li key={i}>{issue}</li>
+                            ))}
+                          </ul>
+                        ) : (
+                          "OK"
+                        )}
+                        {c.extractedText && (
+                          <div className="hint" style={{ marginTop: "0.3rem" }}>
+                            “{c.extractedText}”
+                          </div>
+                        )}
+                      </td>
+                      <td>{c.confidence}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+
+              <div className="summary">
+                <strong>Summary:</strong> {item.data.overallSummary}
+              </div>
+            </>
+          )}
+        </section>
+      ))}
 
       <p className="disclaimer">
         This tool is a pre-screen only. Only TTB (via COLAs Online) can approve

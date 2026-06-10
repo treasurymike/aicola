@@ -51,7 +51,8 @@ public class ReviewController {
             @RequestPart("front") MultipartFile front,
             @RequestPart("back") MultipartFile back,
             @RequestParam(defaultValue = "distilled spirits") String commodity,
-            @RequestParam(defaultValue = "false") boolean imported) throws IOException {
+            @RequestParam(defaultValue = "false") boolean imported,
+            @RequestParam(defaultValue = "haiku") String model) throws IOException {
 
         // Caller-supplied key wins; otherwise fall back to the server's
         // configured key (ANTHROPIC_API_KEY env var). The key is never stored.
@@ -63,8 +64,13 @@ public class ReviewController {
                     + "ANTHROPIC_API_KEY on the server.");
         }
 
+        // Whitelisted model choice — never pass client-supplied model strings through
+        ColaLabelChecker.VisionModel visionModel = "opus".equalsIgnoreCase(model)
+                ? ColaLabelChecker.VisionModel.OPUS
+                : ColaLabelChecker.VisionModel.HAIKU;
+
         ColaLabelReview review = checker.reviewLabels(
-                resolvedKey,
+                resolvedKey, visionModel,
                 front.getBytes(), imageMediaType(front),
                 back.getBytes(), imageMediaType(back),
                 commodity, imported);

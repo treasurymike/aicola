@@ -83,6 +83,56 @@ select {
   background: #fff;
 }
 
+.label-pair {
+  border: 1px solid #d8d0c2;
+  border-radius: 6px;
+  padding: 0.75rem 1rem 1rem;
+  display: grid;
+  gap: 1rem;
+  margin: 0;
+}
+
+.label-pair legend {
+  font-weight: bold;
+  padding: 0 0.4rem;
+}
+
+.remove-pair {
+  background: none;
+  border: none;
+  color: #9c2b13;
+  font-weight: normal;
+  font-size: 0.85rem;
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 0 0 0 0.6rem;
+}
+
+.add-pair {
+  background: none;
+  border: 1px dashed #b3552e;
+  color: #b3552e;
+  justify-self: start;
+}
+
+.result-item {
+  margin-top: 1.75rem;
+}
+
+.result-item h2 {
+  font-size: 1.2rem;
+  margin-bottom: 0.5rem;
+}
+
+.result-state {
+  font-size: 0.9rem;
+  font-weight: normal;
+  font-style: italic;
+}
+
+.result-state.pending { color: #a26a00; }
+.result-state.failed { color: #9c2b13; }
+
 .advanced {
   border: 1px dashed #c8bfae;
   border-radius: 4px;
